@@ -1,3 +1,4 @@
+import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
 import org.w3c.dom.DocumentType;
 import org.w3c.dom.Element;
@@ -10,20 +11,40 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
+import java.nio.file.FileSystemException;
 
-// https://stackoverflow.com/questions/4142046/create-xml-file-using-java
 
-public class WallpaperManipulator {
-    public void createWallpaper(String name, String dayWallpaperPath, String nightWallpaperPath) {
-       try {
+public class Core {
+
+    private String[] handleImageMove(String name, String dayWallpaperPath, String nightWallpaperPath) throws FileSystemException {
+        String username = System.getProperty("user.name");
+        String basePath = "/home/" + username + "/.local/share/backgrounds";
+
+        File dayWallpaper = new File(dayWallpaperPath);
+        File nightWallpaper = new File(nightWallpaperPath);
+
+        boolean isDayWallpaperMoved = dayWallpaper.renameTo(new File( basePath + name + "--day.jpg"));
+        boolean isNightWallpaperMoved = nightWallpaper.renameTo(new File(basePath + name + "--night.jpg"));
+
+        if (!isDayWallpaperMoved || !isNightWallpaperMoved) {
+            throw new FileSystemException("Failed to move files");
+        }
+
+        return new String[] {
+            basePath + name + "--day.jpg",
+            basePath + name + "--night.jpg"
+        };
+    }
+
+    private void handleXMLCreation(String name, String dayWallpaperPath, String nightWallpaperPath) {
+         try {
            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
            DocumentBuilder builder = factory.newDocumentBuilder();
            Document document = builder.newDocument();
 
-           // TODO: Add DTD
-           // DocumentType originalDocumentType = document.getDoctype();
-           // DocumentType docType = originalDocumentType.getDOMI
-           // document.appendChild(docType);
+           DOMImplementation documentImplementation = document.getImplementation();
+           DocumentType documentType = documentImplementation.createDocumentType("wallpapers", "SYSTEM", "gnome-ws-list.dtd");
+           document.appendChild(documentType);
 
            Element wallpapers = document.createElement("wallpapers");
            document.appendChild(wallpapers);
@@ -76,13 +97,27 @@ public class WallpaperManipulator {
 
            String username = System.getProperty("user.name");
 
-           StreamResult result = new StreamResult(new File("/home/"+ username +"/.local/share/gnome-background-properties/" + name + ".xml"));
+           StreamResult result = new StreamResult(new File("/home/" + username + "/.local/share/gnome-background-properties/" + name + ".xml"));
            transformer.transform(source, result);
 
            System.out.println("Finished!");
 
        } catch (Exception exception) {
-           System.out.println("Error: " + exception);
+           System.out.println("Error: " + exception.getMessage());
        }
+    }
+
+    public void createWallpaper(String name, String dayWallpaperPath, String nightWallpaperPath) {
+        
+        try {
+            String[] files = this.handleImageMove(name, dayWallpaperPath, nightWallpaperPath);
+            
+            this.handleXMLCreation(name, files[0], files[1]);
+        
+        } catch (FileSystemException exception) {
+            System.out.println("Failed to move images");
+        } catch (Exception genericException) {
+            System.out.println("Error: " + genericException.getMessage());
+        }
     }
 }
