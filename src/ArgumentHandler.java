@@ -3,6 +3,9 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 
+import java.io.File;
+import java.nio.file.FileSystemException;
+
 public class ArgumentHandler {
     private final Options options = new Options();
     private final CommandLineParser parser = new DefaultParser();
@@ -19,10 +22,26 @@ public class ArgumentHandler {
         this.handleArguments();
     }
 
-    private void createWallpaper(String name, String dayWallpaperPath, String nightWallpaperPath) {
+    private void createWallpaper(String name, String dayWallpaperPath, String nightWallpaperPath) throws FileSystemException {
         WallpaperManipulator manipulator = new WallpaperManipulator();
+        String username = System.getProperty("user.name");
+        String basePath = "/home/" + username + "/.local/share/backgrounds/";
 
-        manipulator.createWallpaper(name, dayWallpaperPath, nightWallpaperPath);
+        File dayWallpaper = new File(dayWallpaperPath);
+        File nightWallpaper = new File(nightWallpaperPath);
+
+        boolean isDayWallpaperMoved = dayWallpaper.renameTo(new File( basePath + name + "--day.jpg"));
+        boolean isNightWallpaperMoved = nightWallpaper.renameTo(new File(basePath + name + "--night.jpg"));
+
+        if (!isDayWallpaperMoved || !isNightWallpaperMoved) {
+            throw new FileSystemException("Failed to move files");
+        }
+
+        manipulator.createWallpaper(
+                name,
+                basePath + name + "--day.jpg",
+                basePath + name + "--night.jpg"
+        );
     }
 
     private void printHelp() {
@@ -50,7 +69,13 @@ public class ArgumentHandler {
             String dayWallpaperPath = cmd.getOptionValue("dw");
             String nightWallpaperPath = cmd.getOptionValue("nw");
 
-            this.createWallpaper(wallpaperName, dayWallpaperPath, nightWallpaperPath);
+            try {
+
+                this.createWallpaper(wallpaperName, dayWallpaperPath, nightWallpaperPath);
+            } catch (Exception error) {
+                System.out.println("Error: " + error.getMessage());
+            }
+
         } else {
             System.out.println("Invalid arguments. Use -h for help.");
         }
