@@ -1,0 +1,1 @@
+/home/$USER/.local/share/gnome-background-properties
