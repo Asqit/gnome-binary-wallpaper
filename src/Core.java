@@ -6,45 +6,44 @@ import org.w3c.dom.Text;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
-import java.nio.file.FileSystemException;
+import java.io.IOException;
+import java.nio.file.*;
 
 
 public class Core {
 
-    private String[] handleImageMove(String name, String dayWallpaperPath, String nightWallpaperPath) throws FileSystemException {
-        String username = System.getProperty("user.name");
-        String basePath = "/home/" + username + "/.local/share/backgrounds";
-
-        File dayWallpaper = new File(dayWallpaperPath);
-        File nightWallpaper = new File(nightWallpaperPath);
-
-        boolean isDayWallpaperMoved = dayWallpaper.renameTo(new File( basePath + name + "--day.jpg"));
-        boolean isNightWallpaperMoved = nightWallpaper.renameTo(new File(basePath + name + "--night.jpg"));
-
-        if (!isDayWallpaperMoved || !isNightWallpaperMoved) {
-            throw new FileSystemException("Failed to move files");
+    public Path copyFile(String sourcePath, String targetPath) throws Exception {
+        try {
+            return Files.copy(Path.of(sourcePath), Path.of(targetPath));
+        } catch (IOException e) {
+            throw new Exception("Failed to copy file");
         }
+    }
 
-        return new String[] {
-            basePath + name + "--day.jpg",
-            basePath + name + "--night.jpg"
+    private Path[] handleImageMove(String name, String dayWallpaperPath, String nightWallpaperPath) throws Exception {
+        String username = System.getProperty("user.name");
+        String basePath = "/home/" + username + "/.local/share/backgrounds/";
+
+        Path dayPath = this.copyFile(dayWallpaperPath, basePath + name + "--day.jpg");
+        Path nightPath = this.copyFile(nightWallpaperPath, basePath + name + "--night-jpg");
+
+        return new Path[] {
+                dayPath,
+                nightPath
         };
     }
 
-    private void handleXMLCreation(String name, String dayWallpaperPath, String nightWallpaperPath) {
+    private void handleXMLCreation(String name, Path dayWallpaperPath, Path nightWallpaperPath) {
          try {
            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
            DocumentBuilder builder = factory.newDocumentBuilder();
            Document document = builder.newDocument();
-
-           DOMImplementation documentImplementation = document.getImplementation();
-           DocumentType documentType = documentImplementation.createDocumentType("wallpapers", "SYSTEM", "gnome-ws-list.dtd");
-           document.appendChild(documentType);
 
            Element wallpapers = document.createElement("wallpapers");
            document.appendChild(wallpapers);
@@ -57,11 +56,11 @@ public class Core {
            nameNode.appendChild(nameText);
 
            Element dayWallpaper = document.createElement("filename");
-           Text dayWallpaperText = document.createTextNode(dayWallpaperPath);
+           Text dayWallpaperText = document.createTextNode(dayWallpaperPath.toString());
            dayWallpaper.appendChild(dayWallpaperText);
 
            Element nightWallpaper = document.createElement("filename-dark");
-           Text nightWallpaperText = document.createTextNode(nightWallpaperPath);
+           Text nightWallpaperText = document.createTextNode(nightWallpaperPath.toString());
            nightWallpaper.appendChild(nightWallpaperText);
 
            Element options = document.createElement("options");
@@ -73,7 +72,7 @@ public class Core {
            shadeType.appendChild(shadeTypeText);
 
            Element pColor = document.createElement("pcolor");
-           Text pColorText = document.createTextNode("#3071AE");
+           Text pColorText = document.createTextNode("#FFFFFF");
            pColor.appendChild(pColorText);
 
            Element sColor = document.createElement("scolor");
@@ -93,11 +92,23 @@ public class Core {
 
            TransformerFactory transformerFactory = TransformerFactory.newInstance();
            Transformer transformer = transformerFactory.newTransformer();
+
+
+           transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+           transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+           transformer.setOutputProperty(OutputKeys.METHOD, "xml");
+
+           DOMImplementation domImpl = document.getImplementation();
+           DocumentType doctype = domImpl.createDocumentType("doctype",
+                     "wallpapers",
+                     "gnome-wp-list.dtd");
+
+           transformer.setOutputProperty(OutputKeys.DOCTYPE_SYSTEM, doctype.getSystemId());
+
            DOMSource source = new DOMSource(document);
-
            String username = System.getProperty("user.name");
-
            StreamResult result = new StreamResult(new File("/home/" + username + "/.local/share/gnome-background-properties/" + name + ".xml"));
+
            transformer.transform(source, result);
 
            System.out.println("Finished!");
@@ -108,14 +119,9 @@ public class Core {
     }
 
     public void createWallpaper(String name, String dayWallpaperPath, String nightWallpaperPath) {
-        
         try {
-            String[] files = this.handleImageMove(name, dayWallpaperPath, nightWallpaperPath);
-            
+            Path[] files = this.handleImageMove(name, dayWallpaperPath, nightWallpaperPath);
             this.handleXMLCreation(name, files[0], files[1]);
-        
-        } catch (FileSystemException exception) {
-            System.out.println("Failed to move images");
         } catch (Exception genericException) {
             System.out.println("Error: " + genericException.getMessage());
         }
