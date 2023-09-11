@@ -2,14 +2,12 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
-import java.io.File;
-import java.nio.file.FileSystemException;
 
-public class Console {
+public class TextUIController {
     private final Options options = new Options();
     private CommandLine cmd;
 
-    public Console(String[] args) {
+    public TextUIController(String[] args) {
         try {
             CommandLineParser parser = new DefaultParser();
             this.cmd = parser.parse(this.options, args);
@@ -55,7 +53,7 @@ public class Console {
             String dayWallpaperPath = cmd.getOptionValue("dw");
             String nightWallpaperPath = cmd.getOptionValue("nw");
 
-            new Core().createWallpaper(wallpaperName, dayWallpaperPath, nightWallpaperPath);
+            new AppController().createWallpaper(wallpaperName, dayWallpaperPath, nightWallpaperPath);
         } else {
             System.out.println("Invalid arguments. Use h for help.");
             for (String arg : this.cmd.getArgs()) {
