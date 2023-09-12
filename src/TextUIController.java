@@ -9,9 +9,7 @@ public class TextUIController {
    private final Scanner scanner = new Scanner(System.in);
 
    private void cls() {
-       for (int i = 0;i < 30;i++) {
-           System.out.println();
-       }
+       for (int i = 0;i < 100;i++) System.out.println();
    }
 
    private void printHelp() {
