@@ -136,8 +136,16 @@ public class AppController {
 
             DOMSource source = new DOMSource(config);
             String username = System.getProperty("user.name");
-            StreamResult result = new StreamResult(new File("/home/" + username + "/.local/share/gnome-background-properties/" + name + ".xml"));
 
+            if (!Files.exists(Path.of("/home/" + username + "/.local/share/gnome-background-properties/"))) {
+                boolean isDirectoryCreated = new File("/home/" + username + "/.local/share/gnome-background-properties/").mkdirs();
+
+                if (!isDirectoryCreated) {
+                    throw new Exception("Failed to create directory");
+                }
+            }
+
+            StreamResult result = new StreamResult(new File("/home/" + username + "/.local/share/gnome-background-properties/" + name + ".xml"));
             transformer.transform(source, result);
 
         } catch (Exception error) {
