@@ -35,21 +35,45 @@ public class AppController {
      * @return Array of two Paths where first is path of copied light wallpaper, followed by dark.
      * */
     private Path[] handleImageMove(String name, String dayWallpaperPath, String nightWallpaperPath) throws Exception {
-        String username = System.getProperty("user.name");
-        String basePath = "/home/" + username + "/.local/share/backgrounds/";
-        boolean isCreated = new File(basePath + name).mkdirs();
-
-        if (!isCreated) {
-            throw new FileSystemException("Failed to create a directory");
-        }
-
-        Path dayPath = this.copyFile(dayWallpaperPath, (basePath + name) + "/" + name + "--day.jpg");
-        Path nightPath = this.copyFile(nightWallpaperPath, (basePath + name) + "/" + name + "--night-jpg");
+        String basePath = this.createBackgroundDirectory(name);
+        Path dayPath = this.copyFile(dayWallpaperPath, this.getFilePath(basePath, name, dayWallpaperPath, false));
+        Path nightPath = this.copyFile(nightWallpaperPath, this.getFilePath(basePath, name, nightWallpaperPath, true));
 
         return new Path[] {
                 dayPath,
                 nightPath
         };
+    }
+
+    /**
+     * a utility method for creating a path
+     * @param basePath directory to which the originalPath files will be moved (see this.createBackgroundDirectory method)
+     * @param isDark a toggle for when it is needed to append --dark or --light flag
+     * @param name desired name for our wallpapers
+     * @param originalPath path to original files
+     * */
+    private String getFilePath(String basePath, String name, String originalPath, boolean isDark) {
+        String[] bits = originalPath.split("/");
+        String filename = bits[bits.length - 1];
+        String extension = filename.split("\\.")[1];
+
+        return (basePath + name) + "/" + name + (isDark ? "--dark" : "--light") + "." + extension;
+    }
+
+    /**
+     * method for obtaining the path to `~/.local/share/backgrounds`
+     * @param name desired name for our directory
+     * @throws Exception a generic exception
+     * */
+    private String createBackgroundDirectory(String name) throws Exception {
+        String username = System.getProperty("user.name");
+        String basePath = "/home/" + username + "/.local/share/backgrounds/";
+
+        if (new File(basePath + name).mkdirs()) {
+            throw new Exception("Failed to create the \"Backgrounds\" directory");
+        }
+
+        return basePath;
     }
 
     /**
@@ -165,7 +189,7 @@ public class AppController {
             Path[] files = this.handleImageMove(name, dayWallpaperPath, nightWallpaperPath);
             this.createConfigFile(name, files[0], files[1]);
         } catch (Exception genericException) {
-            System.out.println("Error: " + genericException.getMessage());
+            System.out.println(genericException.getMessage());
         }
     }
 }
