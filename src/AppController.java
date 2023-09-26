@@ -2,7 +2,6 @@ import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
 import org.w3c.dom.DocumentType;
 import org.w3c.dom.Element;
-import org.w3c.dom.Text;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
@@ -13,183 +12,200 @@ import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.ArrayList;
-
 
 public class AppController {
+    private String backgroundsBasePath;
+    private String configBasePath;
+    
+    public AppController() {
+        String username = System.getProperty("user.name");
+        backgroundsBasePath = "/home/" + username + "/.local/share/backgrounds";
+        configBasePath = "/home/" + username + "/.local/share/gnome-background-properties";
+    }
 
     /**
-     * Copy files from A to B
-     * @param sourcePath the original file with its path
-     * @param targetPath desired destination
-     * */
-    public Path copyFile(String sourcePath, String targetPath) throws IOException {
+     * method used to simply copy files from point A to point B
+     * @param sourcePath where is the original file
+     * @param targetPath where should the file be copied 
+     * @return the path of the result
+     * @throws IOException
+     */
+    private Path copyFile(String sourcePath, String targetPath) throws IOException {
         return Files.copy(Path.of(sourcePath), Path.of(targetPath));
     }
 
     /**
-     * Copy specific two image files to ~/.local/share/backgrounds
-     * @param nightWallpaperPath the original path for dark wallpaper
-     * @param dayWallpaperPath the original path for light wallpaper
-     * @param name desired wallpaper name
-     * @return Array of two Paths where first is path of copied light wallpaper, followed by dark.
-     * */
-    private Path[] handleImageMove(String name, String dayWallpaperPath, String nightWallpaperPath) throws Exception {
-        String basePath = this.createBackgroundDirectory(name);
-        Path dayPath = this.copyFile(dayWallpaperPath, this.getFilePath(basePath, name, dayWallpaperPath, false));
-        Path nightPath = this.copyFile(nightWallpaperPath, this.getFilePath(basePath, name, nightWallpaperPath, true));
-
-        return new Path[] {
-                dayPath,
-                nightPath
-        };
+     * if directory and it's parents don't exist, try to create them or throw exception
+     * @param directoryPath
+     * @throws IOException
+     */
+    private void createDirectoriesIfNotExist(Path directoryPath) throws IOException {
+        if (!Files.exists(directoryPath)) {
+            Path createdPath = Files.createDirectories(directoryPath);
+            if (!Files.exists(createdPath)) {
+                throw new IOException("Failed to create directory");
+            }
+        }
     }
 
+
     /**
-     * a utility method for creating a path
-     * @param basePath directory to which the originalPath files will be moved (see this.createBackgroundDirectory method)
-     * @param isDark a toggle for when it is needed to append --dark or --light flag
-     * @param name desired name for our wallpapers
-     * @param originalPath path to original files
-     * */
-    private String getFilePath(String basePath, String name, String originalPath, boolean isDark) {
-        String[] bits = originalPath.split("/");
+     * method for generating final path of user's image
+     * @param name name of the image (name of the wallpaper as a whole)
+     * @param originalImagePath where is the original image located 
+     * @param isDark toggle for when the image is for dark mode or light mode
+     * @return the generated path
+     */
+    private String getImagePath(String name, String originalImagePath, boolean isDark) {
+        String[] bits = originalImagePath.split("/");
         String filename = bits[bits.length - 1];
         String extension = filename.split("\\.")[1];
 
-        return (basePath + name) + "/" + name + (isDark ? "--dark" : "--light") + "." + extension;
+        return (backgroundsBasePath + "/" + name) + "/" + name + (isDark ? "--dark" : "--light") + "." + extension;
     }
 
     /**
-     * method for obtaining the path to `~/.local/share/backgrounds`
-     * @param name desired name for our directory
-     * @throws Exception a generic exception
-     * */
-    private String createBackgroundDirectory(String name) throws Exception {
-        String username = System.getProperty("user.name");
-        String basePath = "/home/" + username + "/.local/share/backgrounds/";
+     * method used to actually copy the source images
+     * @param name
+     * @param lightWallpaperPath
+     * @param darkWallpaperPath
+     * @return Path array of 2 where the light is first, followed by  dark
+     * @throws IOException
+     */
+    private Path[] handleImageMove(String name, String lightWallpaperPath, String darkWallpaperPath) throws IOException {
+        this.createDirectoriesIfNotExist(Path.of(backgroundsBasePath + "/" + name));
 
-        if (new File(basePath + name).mkdirs()) {
-            throw new Exception("Failed to create the \"Backgrounds\" directory");
-        }
+        Path lightFinalPath = this.copyFile(lightWallpaperPath, this.getImagePath(name, lightWallpaperPath, false));
+        Path darkFinalPath = this.copyFile(darkWallpaperPath, this.getImagePath(name, darkWallpaperPath, true));
+        return new Path[] { lightFinalPath, darkFinalPath };
+    } 
 
-        return basePath;
+
+    /**
+     * method used to append a text node into parent node
+     * @param config
+     * @param parent
+     * @param tagName
+     * @param textContent
+     */
+    private void appendTextElement(Document config, Element parent, String tagName, String textContent) {
+        Element element = config.createElement(tagName);
+        element.setTextContent(textContent);
+        parent.appendChild(element);
     }
 
     /**
-     * create a simple textual element
-     * @param tagName string that specifies the element's tag
-     * @param document document used to create the element
-     * @param value the textual value of the element
-     * @return the text element
-     * */
-    private Element createTextElement(Document document, String tagName, String value) {
-        Element element = document.createElement(tagName);
-        Text text = document.createTextNode(value);
-
-        element.appendChild(text);
-        return element;
+     * method used to create the config document (future XML file)
+     * @param name
+     * @param dayWallpaperPath
+     * @param nightWallpaperPath
+     * @return
+     * @throws Exception
+     */
+    private Document createConfigDocument(String name, Path dayWallpaperPath, Path nightWallpaperPath) throws Exception {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document config = builder.newDocument();
+    
+        Element wallpaper = config.createElement("wallpaper");
+        wallpaper.setAttribute("deleted", "false");
+    
+        appendTextElement(config, wallpaper, "name", name);
+        appendTextElement(config, wallpaper, "filename", dayWallpaperPath.toString());
+        appendTextElement(config, wallpaper, "filename-dark", nightWallpaperPath.toString());
+        appendTextElement(config, wallpaper, "options", "zoom");
+        appendTextElement(config, wallpaper, "shade_type", "solid");
+        appendTextElement(config, wallpaper, "pcolor", "#ffffff");
+        appendTextElement(config, wallpaper, "scolor", "#000000");
+    
+        Element wallpapers = config.createElement("wallpapers");
+        wallpapers.appendChild(wallpaper);
+    
+        config.appendChild(wallpapers);
+    
+        DOMImplementation domImpl = config.getImplementation();
+        DocumentType documentType = domImpl.createDocumentType(
+            "documentType",
+            "wallpapers",
+            "gnome-wp-list.dtd"
+        );
+    
+        TransformerFactory transformerFactory = TransformerFactory.newInstance();
+        Transformer transformer = transformerFactory.newTransformer();
+    
+        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+        transformer.setOutputProperty(OutputKeys.METHOD, "xml");
+        transformer.setOutputProperty(OutputKeys.DOCTYPE_SYSTEM, documentType.getSystemId());
+    
+        return config;
     }
 
     /**
-     * Create a document node, that holds specific children
-     * @param tagName string that specifies the Element's tag
-     * @param document reference to the document which we used to create the Node
-     * @param children other Elements, that should be appended to the created Node
-     * @return the wrapper element
-     * */
-    private Element createWrapperElement(Document document, String tagName, ArrayList<Element> children) {
-        Element wrapper = document.createElement(tagName);
-
-        for (Element child : children) {
-            wrapper.appendChild(child);
-        }
-
-        return wrapper;
+     * method used to save config document to XML file
+     * @param config
+     * @param filePath
+     * @throws Exception
+     */
+    private void saveConfigToFile(Document config, Path filePath) throws Exception {
+        TransformerFactory transformerFactory = TransformerFactory.newInstance();
+        Transformer transformer = transformerFactory.newTransformer();
+    
+        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+        transformer.setOutputProperty(OutputKeys.METHOD, "xml");
+    
+        DOMSource source = new DOMSource(config);
+        StreamResult result = new StreamResult(filePath.toFile());
+        transformer.transform(source, result);
     }
-
-    /**
-     * Create gnome wallpaper configuration file
-     * @param name name of the configuration file and thus the wallpaper
-     * @param dayWallpaperPath path to day/light wallpaper
-     * @param nightWallpaperPath path to night/dark wallpaper
-     * */
-    private void createConfigFile(String name, Path dayWallpaperPath, Path nightWallpaperPath) {
+    
+    private void deleteDir(File file) {
         try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder builder = factory.newDocumentBuilder();
-            Document config = builder.newDocument();
-
-            // Append all children of wallpaper
-            ArrayList<Element> wallpaperChildren = new ArrayList<>();
-
-            wallpaperChildren.add(this.createTextElement(config, "name", name));
-            wallpaperChildren.add(this.createTextElement(config, "filename", dayWallpaperPath.toString()));
-            wallpaperChildren.add(this.createTextElement(config, "filename-dark", nightWallpaperPath.toString()));
-            wallpaperChildren.add(this.createTextElement(config, "options", "zoom"));
-            wallpaperChildren.add(this.createTextElement(config, "shade_type", "solid"));
-            wallpaperChildren.add(this.createTextElement(config, "pcolor", "#ffffff"));
-            wallpaperChildren.add(this.createTextElement(config, "scolor", "#000000"));
-
-            // Create the actual wallpaper node
-            Element wallpaper = this.createWrapperElement(config, "wallpaper", wallpaperChildren);
-            wallpaper.setAttribute("deleted", "false");
-
-            // Append wallpaper to wallpapers wrapper
-            Element wallpapers = config.createElement("wallpapers");
-            wallpapers.appendChild(wallpaper);
-
-            // append wallpapers wrapper to config (document)
-            config.appendChild(wallpapers);
-
-
-            // Save the file in XMl format with desired specifications
-            TransformerFactory transformerFactory = TransformerFactory.newInstance();
-            Transformer transformer = transformerFactory.newTransformer();
-
-            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
-            transformer.setOutputProperty(OutputKeys.METHOD, "xml");
-
-            DOMImplementation domImpl = config.getImplementation();
-            DocumentType documentType = domImpl.createDocumentType("documentType",
-                    "wallpapers",
-                    "gnome-wp-list.dtd");
-
-            transformer.setOutputProperty(OutputKeys.DOCTYPE_SYSTEM, documentType.getSystemId());
-
-            DOMSource source = new DOMSource(config);
-            String username = System.getProperty("user.name");
-
-            if (!Files.exists(Path.of("/home/" + username + "/.local/share/gnome-background-properties/"))) {
-                boolean isDirectoryCreated = new File("/home/" + username + "/.local/share/gnome-background-properties/").mkdirs();
-
-                if (!isDirectoryCreated) {
-                    throw new Exception("Failed to create directory");
+            File[] contents = file.listFiles();
+            if (contents != null) {
+                for (File f : contents) {
+                    if (! Files.isSymbolicLink(f.toPath())) {
+                        deleteDir(f);
+                    }
                 }
             }
-
-            StreamResult result = new StreamResult(new File("/home/" + username + "/.local/share/gnome-background-properties/" + name + ".xml"));
-            transformer.transform(source, result);
-
-        } catch (Exception error) {
-            System.out.println("Failed to create configuration file");
+            file.delete();
+        } catch (SecurityException e) {
+            System.out.println("Failed to delete a directory:" + file.getAbsolutePath());
         }
     }
 
+    /**
+     * method used to create it the XML file
+     * @param name
+     * @param dayWallpaperPath
+     * @param nightWallpaperPath
+     */
+    private void createConfigFile(String name, Path dayWallpaperPath, Path nightWallpaperPath) {
+        try {
+            Document config = createConfigDocument(name, dayWallpaperPath, nightWallpaperPath);
+    
+            Path configFilePath = Path.of(configBasePath, name + ".xml");
+    
+            createDirectoriesIfNotExist(configFilePath.getParent());
+    
+            saveConfigToFile(config, configFilePath);
+    
+        } catch (Exception error) {
+            System.err.println("Failed to create configuration file");
+            deleteDir(new File(backgroundsBasePath + "/" + name));
+        }
+    }
 
     /**
-     * the only available public method, that makes the entire application's logic
-     * @param name the desired name of the wallpaper & config
-     * @param dayWallpaperPath  original path of the light themed wallpaper
-     * @param nightWallpaperPath original path of the dark themed wallpaper
-     * */
-    public void createWallpaper(String name, String dayWallpaperPath, String nightWallpaperPath) {
-        try {
-            Path[] files = this.handleImageMove(name, dayWallpaperPath, nightWallpaperPath);
-            this.createConfigFile(name, files[0], files[1]);
-        } catch (Exception genericException) {
-            System.out.println(genericException.getMessage());
-        }
+     * method used to create the gnome-binary-wallpaper
+     * @param name
+     * @param lightWallpaperPath
+     * @param darkWallpaperPath
+     */
+    public void createWallpaper(String name, String lightWallpaperPath, String darkWallpaperPath) throws IOException {
+        Path[] files = this.handleImageMove(name, lightWallpaperPath, darkWallpaperPath);
+        createConfigFile(name, files[0], files[1]);
     }
 }

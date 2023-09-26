@@ -1,3 +1,4 @@
+import java.io.IOException;
 import java.util.Scanner;
 
 public class TextUIController {
@@ -41,8 +42,15 @@ public class TextUIController {
 
         AppController appController = new AppController();
 
-        appController.createWallpaper(name, dayWallpaperPath, nightWallpaperPath);
-        System.out.println("Wallpaper " + name + " has been successfully created!");
+        try {
+            appController.createWallpaper(name, dayWallpaperPath, nightWallpaperPath);
+            System.out.println("Wallpaper " + name + " has been successfully created!");
+        } catch (IOException e) {
+            System.out.println("Cannot find desired files");
+        } catch (Exception e) {
+            System.out.println("Something went wrong...");
+        }
+
     }
 
     private void runner() {
