@@ -1,58 +1,46 @@
+from platform import system
+import argparse
+import shutil
 import string
 import os
 
-# exit if on windows
-if os.name == "nt":
-    print("unsupported platform")
-    exit(1)
-
-BACKGROUNDS_DIRECTORY = "~/.local/share/backgrounds/"
-CONFIGURATION_DIRECTORY = "~/.local/share/gnome-background-properties/"
-
-def get_proper_path(msg: str) -> str:
-    attempt = input(msg)
-
-    while not (os.path.exists(attempt) or os.path.expanduser(attempt)):
-        print("Invalid path")
-        attempt = input("please try again: ")
-
-    return attempt
-
-def create_dir_if_not_exist(path: str) -> None:
-    if os.path.exists(path) and os.path.isdir(path):
-        return
-    
-    os.makedirs(path, exist_ok=True)
-
-def get_new_image_name(origin: str, is_dark: bool, name: str) -> str:
-    filename = origin.split("/")[-1]
-    file_extension = filename.split(".")[1]
-    dark_toggler = "--d" if is_dark else "--l"
-
-    return BACKGROUNDS_DIRECTORY + name + "/" + name + dark_toggler + "." + file_extension
-
-def copy_file(origin: str, destination: str) -> str:
-    os.rename(origin,os.path.join(destination))
+# Assign CLI arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("-n", "--name", help="Show output")
+parser.add_argument("-lw", "--light-wallpaper", help="Path of the light wallpaper")
+parser.add_argument("-dw", "--dark-wallpaper", help="Path of the dark wallpaper")
+args = parser.parse_args()
 
 
-# get required inputs 
-wallpaper_name = input("wallpaper name: ")
-light_wallpaper_path = get_proper_path("light wallpaper path: ")
-new_light_wallpaper_path = get_new_image_name(light_wallpaper_path, False, wallpaper_name)
-dark_wallpaper_path = get_proper_path("dark wallpaper path: ")
-new_dark_wallpaper_path = get_new_image_name(dark_wallpaper_path, True, wallpaper_name)
+BACKGROUNDS_DIRECTORY = os.path.expanduser("/.local/share/backgrounds/")
+CONFIG_DIRECTORY = os.path.expanduser("/.local/share/gnome-background-properties/")
 
 
-# creating directories if they don't exist
-create_dir_if_not_exist(BACKGROUNDS_DIRECTORY + wallpaper_name)
-create_dir_if_not_exist(CONFIGURATION_DIRECTORY)
-
-# copy images
-copy_file(light_wallpaper_path, new_light_wallpaper_path)
-copy_file(dark_wallpaper_path, new_dark_wallpaper_path)
+def copy_file(filepath: str, destination: str) -> None:
+    try:
+        shutil.copyfile(filepath, destination)
+    except Exception as e:
+        print(f"Failed to copy file from {filepath} to {destination}\nSee: {e}")
 
 
-xml_template = string.Template("""
+def create_directory_if_not_exists(path: str) -> None:
+    if not os.path.exists(path) or not os.path.isdir(path):
+        try:
+            os.makedirs(path, exist_ok=True)
+        except Exception as e:
+            print(f"Failed to create directory at {path}\nSee: {e}")
+
+
+def parse_file_name(path: str, name: str, is_dark: bool) -> str:
+    file = path.split("/")[-1]
+    bits = file.split(".")
+
+    return name + "--dark" if is_dark else "--light" + "." + bits[1]
+
+
+def create_config(name: str, lw: str, dw: str):
+    xml_template = string.Template(
+        """
 <?xml version="1.0"?>
 <!DOCTYPE wallpapers SYSTEM "gnome-wp-list.dtd">
 <wallpapers>
@@ -66,15 +54,60 @@ xml_template = string.Template("""
     <scolor>#000000</scolor>
   </wallpaper>
 </wallpapers>
-""")
+"""
+    )
 
-xml_final = xml_template.substitute(name=wallpaper_name, path_light=new_light_wallpaper_path, path_dark=new_dark_wallpaper_path)
+    xml_final = xml_template.substitute(
+        name=name,
+        path_light=lw,
+        path_dark=dw,
+    )
 
-CONFIG_PATH = CONFIGURATION_DIRECTORY + "/" + wallpaper_name + ".xml"
+    config_path = os.path.join(CONFIG_DIRECTORY, name + ".xml")
 
-if os.path.exists(CONFIG_PATH):
-    print('file already exists')
-else:
-    with open(CONFIG_PATH, 'w') as fp:
-        fp.write(xml_final)
-        fp.close()
+    if os.path.exists(config_path):
+        print("Configuration already exists")
+        return
+
+    try:
+        with open(path=config_path, mode="W") as fp:
+            fp.write(xml_final)
+    except Exception:
+        print("Faled to save configuration")
+
+
+def make_wallpaper(name: str, light_wallpaper: str, dark_wallpaper: str) -> None:
+    create_directory_if_not_exists(BACKGROUNDS_DIRECTORY)
+    create_directory_if_not_exists(os.path.join(BACKGROUNDS_DIRECTORY, name))
+    create_directory_if_not_exists(CONFIG_DIRECTORY)
+    parsed_light_wallpaper = parse_file_name(light_wallpaper, name, False)
+    parsed_dark_wallpaper = parse_file_name(dark_wallpaper, name, True)
+
+    copy_file(
+        light_wallpaper,
+        os.path.join(BACKGROUNDS_DIRECTORY, f"/{name}/", parsed_light_wallpaper),
+    )
+
+    copy_file(
+        dark_wallpaper,
+        os.path.join(BACKGROUNDS_DIRECTORY, f"/{name}/", parsed_dark_wallpaper),
+    )
+
+    create_config()
+
+
+def init() -> None:
+    name: str = args.name
+    light_wallpaper: str = args.light_wallpaper
+    dark_wallpaper: str = args.dark_wallpaper
+
+    make_wallpaper(name, light_wallpaper, dark_wallpaper)
+
+
+# Run only on Linux
+if __name__ == "__main__":
+    if system() != "Linux":
+        print("Unsupported platform")
+        exit(1)
+
+    init()
