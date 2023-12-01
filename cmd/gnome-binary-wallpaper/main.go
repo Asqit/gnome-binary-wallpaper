@@ -32,11 +32,17 @@ func main() {
 	name := flag.String("name", "", "name of the resulting wallpaper")
 	lightWallpaperSource := flag.String("lw", "", "source image for the light version of the wallpaper")
 	darkWallpaperSource := flag.String("dw", "", "source image for the dark version of the wallpaper")
+
+	// optional arguments
+	sType := flag.String("shade", "solid", "specifies how to shade the background\noptions: 'horizontal', 'vertical', 'solid'")
+	pOptions := flag.String("options", "zoom", "determines how the image is rendered.\noptions: 'none', 'wallpaper', 'centered', 'scaled', 'stretched', 'zoom', 'spanned'")
+	pColor := flag.String("pcolor", "#023c88", "specifies the primary color")
+	sColor := flag.String("scolor", "#5789ca", "specifies the secondary color")
 	flag.Parse()
 
 	if *name == "" || *lightWallpaperSource == "" || *darkWallpaperSource == "" {
-		exitOnErr(fmt.Errorf("invalid parameters\nsee 'gnome-binary-wallpaper -help' for more info"))
-
+		fmt.Println(fmt.Errorf("invalid usage\nsee 'gnome-binary-wallpaper -help' for more info"))
+		os.Exit(1)
 	}
 
 	baseDir, err := os.UserHomeDir()
@@ -62,10 +68,10 @@ func main() {
 			Name:         *name,
 			FileName:     lw,
 			FileNameDark: dw,
-			Options:      "zoom",
-			ShadeType:    "solid",
-			PColor:       "#FFFFFF",
-			SColor:       "#000000",
+			Options:      *pOptions,
+			ShadeType:    *sType,
+			PColor:       *pColor,
+			SColor:       *sColor,
 		},
 	}
 
