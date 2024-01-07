@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"runtime"
 )
 
 // parent wrapper
@@ -29,6 +30,11 @@ type WallpaperXML struct {
 }
 
 func main() {
+	if runtime.GOOS != "linux" {
+		fmt.Println(fmt.Errorf("invalid platform!\nOnly GNU/linux is supported"))
+		os.Exit(1)
+	}
+
 	name := flag.String("name", "", "name of the resulting wallpaper")
 	lightWallpaperSource := flag.String("lw", "", "source image for the light version of the wallpaper")
 	darkWallpaperSource := flag.String("dw", "", "source image for the dark version of the wallpaper")

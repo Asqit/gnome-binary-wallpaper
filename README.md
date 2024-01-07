@@ -13,12 +13,12 @@ git clone https://github.com/asqit/gnome-binary-wallpaper && cd ./gnome-binary-w
 Build the executable for your platform.
 
 ```shell
-go build ./cmd/gnome-binary-wallpaper/gbw.go
+go build ./cmd/gnome-binary-wallpaper/main.go
 ```
 
 run the program
 
 ```shell
 cd ./cmd/gnome-binary-wallpaper
-./gbw -name dome -lw ~/Downloads/dome-light.jpg -dw ~/Downloads/dome-dark.jpg
+./gnome-binary-wallpaper -name dome -lw ~/Downloads/dome-light.jpg -dw ~/Downloads/dome-dark.jpg
 ```
