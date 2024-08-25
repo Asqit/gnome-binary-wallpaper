@@ -15,7 +15,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          check-latest: true
+          select: 1.21.4
 
       - name: Build Linux binary
         run: |
