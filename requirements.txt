@@ -1,0 +1,1 @@
+PyGObject-stubs==2.13.0

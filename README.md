@@ -1,24 +1,28 @@
-# gnome-binary-wallpaper
+# Gnome Binary Wallpaper
 
-Gnome-binary-wallpaper is simple program that helps you create a dark / light wallpapers for linux gnome user environment.
+![app image](repo/app.png)
 
-## Build it yourself
+A simple GTK4 + Python app to generate GNOME-compatible binary wallpapers with light and dark variants.  
+Select two images, name your wallpaper, and the app will handle the copying and XML generation.
 
-clone the repository
+---
 
-```shell
-git clone https://github.com/asqit/gnome-binary-wallpaper && cd ./gnome-binary-wallpaper
-```
+## ✨ Features
 
-Build the executable for your platform.
+- GTK4 GUI using Python
+- Select light and dark wallpapers
+- Automatically generates XML config for GNOME
 
-```shell
-go build ./cmd/gnome-binary-wallpaper/main.go
-```
+---
 
-run the program
+## 📦 Requirements
 
-```shell
-cd ./cmd/gnome-binary-wallpaper
-./gnome-binary-wallpaper -name dome -lw ~/Downloads/dome-light.jpg -dw ~/Downloads/dome-dark.jpg
+- Python 3.10+
+- GTK 4.0
+- PyGObject-stubs
+
+> You can install dev requirements:
+
+```bash
+pip install -r requirements.txt
 ```
